@@ -1,5 +1,6 @@
 package com.teamactiontracker.backend.controller;
 
+import com.teamactiontracker.backend.dto.CreateActionItemRequest;
 import com.teamactiontracker.backend.model.ActionItem;
 import com.teamactiontracker.backend.service.ActionItemService;
 import org.springframework.http.HttpStatus;
@@ -29,20 +30,8 @@ public class ActionItemController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public ActionItem createActionItem(@RequestBody ActionItem actionItem) {
-        return actionItemService.createActionItem(actionItem);
-    }
-
-    @PutMapping("/{id}")
-    public ActionItem updateActionItem(
-            @PathVariable Long id,
-            @RequestBody ActionItem actionItem) {
-        return actionItemService.updateActionItem(id, actionItem);
-    }
-
-    @DeleteMapping("/{id}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteActionItem(@PathVariable Long id) {
-        actionItemService.deleteActionItem(id);
+    public ActionItem createActionItem(
+            @RequestBody CreateActionItemRequest request) {
+        return actionItemService.createActionItem(request);
     }
 }
