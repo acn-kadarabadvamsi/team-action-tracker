@@ -1,0 +1,16 @@
+# Java / Maven
+backend/target/
+backend/.mvn/wrapper/maven-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Environment / secrets
+backend/src/main/resources/application-local.properties
+.env
+
+# OS
+.DS_Store
+Thumbs.db
