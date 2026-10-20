@@ -40,5 +40,9 @@ public class ActionItemValidator {
         if (request.getDueDate() == null) {
             throw new IllegalArgumentException("Due date is required");
         }
+
+        if (request.getDueDate().isBefore(java.time.LocalDate.now())) {
+            throw new IllegalArgumentException("Due date cannot be in the past");
+        }
     }
 }

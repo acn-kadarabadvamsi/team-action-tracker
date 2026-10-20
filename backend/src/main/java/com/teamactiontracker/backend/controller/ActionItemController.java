@@ -18,6 +18,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -77,7 +78,7 @@ public class ActionItemController {
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(
         summary = "Create an action item",
-        description = "Creates a new action item using the supplied request data."
+        description = "Creates a new action item using the authenticated manager's identity."
     )
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "Action item created successfully"),
@@ -86,9 +87,11 @@ public class ActionItemController {
         @ApiResponse(responseCode = "403", description = "Only authorized users may create action items")
     })
     public ActionItemResponse createActionItem(
-            @Valid @RequestBody CreateActionItemRequest request) {
+            @Valid @RequestBody CreateActionItemRequest request,
+            Authentication authentication) {
 
-        ActionItem item = actionItemService.createActionItem(request);
+        ActionItem item =
+                actionItemService.createActionItem(request, authentication);
 
         return ActionItemResponse.from(item);
     }

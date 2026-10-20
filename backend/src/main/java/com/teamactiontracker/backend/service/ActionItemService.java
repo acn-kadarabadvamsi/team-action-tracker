@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 @Service
@@ -48,30 +49,62 @@ public class ActionItemService {
         this.validator = validator;
     }
 
+    @Transactional(readOnly = true)
     public List<ActionItem> getAllActionItems() {
-        return actionItemRepository.findAll();
+        User currentUser = getCurrentUser();
+        String role = normalizedRole(currentUser);
+
+        if ("MANAGER".equals(role)) {
+            return actionItemRepository.findAll();
+        }
+
+        if ("TEAM_MEMBER".equals(role)) {
+            return actionItemRepository.findByAssignee_UserId(
+                    currentUser.getUserId());
+        }
+
+        throw new AccessDeniedException(
+                "You do not have permission to view action items");
     }
 
+    @Transactional(readOnly = true)
     public ActionItem getActionItemById(Long id) {
-        return actionItemRepository.findById(id)
+        User currentUser = getCurrentUser();
+
+        ActionItem actionItem = actionItemRepository.findById(id)
                 .orElseThrow(() ->
                         new IllegalArgumentException(
                                 "Action item not found"));
+
+        authorizeForActionItem(currentUser, actionItem);
+        return actionItem;
     }
 
-    public ActionItem createActionItem(CreateActionItemRequest request) {
+    @Transactional
+    public ActionItem createActionItem(
+            CreateActionItemRequest request,
+            Authentication authentication) {
+
+        User createdBy = getCurrentUser(authentication);
+
+        if (!"MANAGER".equals(normalizedRole(createdBy))) {
+            throw new AccessDeniedException(
+                    "Only Managers can create action items");
+        }
+
         validator.validate(request);
 
         User assignee = userRepository.findById(request.getAssigneeId())
                 .orElseThrow(() ->
                         new IllegalArgumentException("Assignee not found"));
 
-        User createdBy = userRepository.findById(request.getCreatedBy())
-                .orElseThrow(() ->
-                        new IllegalArgumentException("Creator not found"));
+        if (!Boolean.TRUE.equals(assignee.getActiveStatus())) {
+            throw new IllegalArgumentException(
+                    "Cannot assign an action item to an inactive user");
+        }
 
         ActionItem actionItem = new ActionItem();
-        actionItem.setTitle(request.getTitle());
+        actionItem.setTitle(request.getTitle().trim());
         actionItem.setDescription(request.getDescription());
         actionItem.setAssignee(assignee);
         actionItem.setPriority(request.getPriority());
@@ -81,6 +114,8 @@ public class ActionItemService {
                         : request.getStatus()
         );
         actionItem.setDueDate(request.getDueDate());
+
+        // Use the authenticated manager, not the client-supplied createdBy ID.
         actionItem.setCreatedBy(createdBy);
 
         return actionItemRepository.save(actionItem);
@@ -91,7 +126,6 @@ public class ActionItemService {
             Long actionItemId,
             UpdateActionItemStatusRequest request) {
 
-        // 1. Validate the requested status.
         if (request == null
                 || request.getStatus() == null
                 || !ALLOWED_STATUSES.contains(request.getStatus())) {
@@ -100,67 +134,24 @@ public class ActionItemService {
                     "Invalid action item status");
         }
 
-        // 2. Identify the authenticated user.
-        Authentication authentication =
-                SecurityContextHolder.getContext().getAuthentication();
-
-        if (authentication == null
-                || !authentication.isAuthenticated()
-                || authentication.getName() == null
-                || "anonymousUser".equals(authentication.getName())) {
-
-            throw new AccessDeniedException(
-                    "Authentication is required to update status");
-        }
-
-        User updatedBy = userRepository
-                .findByEmailIgnoreCase(authentication.getName())
-                .orElseThrow(() ->
-                        new AccessDeniedException(
-                                "Authenticated user was not found"));
-
-        // 3. Retrieve the action item.
+        User updatedBy = getCurrentUser();
         ActionItem actionItem = actionItemRepository
                 .findById(actionItemId)
                 .orElseThrow(() ->
                         new IllegalArgumentException(
                                 "Action item not found"));
 
-        // 4. Enforce role and assignment permissions.
-        String role = updatedBy.getRole();
+        authorizeForActionItem(updatedBy, actionItem);
 
-        if ("MANAGER".equals(role)) {
-            // Managers can update any action item.
-        } else if ("TEAM_MEMBER".equals(role)) {
-
-            User assignee = actionItem.getAssignee();
-
-            if (assignee == null
-                    || !assignee.getUserId()
-                            .equals(updatedBy.getUserId())) {
-
-                throw new AccessDeniedException(
-                        "Team Members can update only action items "
-                                + "assigned to them");
-            }
-
-        } else {
-            throw new AccessDeniedException(
-                    "You do not have permission to update action items");
-        }
-
-        // 5. Update status and completion date.
         String previousStatus = actionItem.getStatus();
         String newStatus = request.getStatus();
 
         actionItem.setStatus(newStatus);
 
         if ("COMPLETED".equals(newStatus)) {
-
             if (!"COMPLETED".equals(previousStatus)) {
                 actionItem.setCompletedAt(LocalDateTime.now());
             }
-
         } else {
             actionItem.setCompletedAt(null);
         }
@@ -168,7 +159,6 @@ public class ActionItemService {
         ActionItem savedActionItem =
                 actionItemRepository.save(actionItem);
 
-        // 6. Record the status change in action history.
         ActionHistory history = new ActionHistory();
         history.setActionItem(savedActionItem);
         history.setPreviousStatus(previousStatus);
@@ -183,14 +173,79 @@ public class ActionItemService {
 
     @Transactional(readOnly = true)
     public List<ActionHistory> getActionItemHistory(Long actionItemId) {
+        User currentUser = getCurrentUser();
 
-        if (!actionItemRepository.existsById(actionItemId)) {
-            throw new IllegalArgumentException(
-                    "Action item not found");
-        }
+        ActionItem actionItem = actionItemRepository.findById(actionItemId)
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "Action item not found"));
+
+        authorizeForActionItem(currentUser, actionItem);
 
         return actionHistoryRepository
                 .findByActionItem_ActionItemIdOrderByUpdatedAtDesc(
                         actionItemId);
+    }
+
+    private User getCurrentUser() {
+        return getCurrentUser(
+                SecurityContextHolder.getContext().getAuthentication());
+    }
+
+    private User getCurrentUser(Authentication authentication) {
+        if (authentication == null
+                || !authentication.isAuthenticated()
+                || authentication.getName() == null
+                || "anonymousUser".equals(authentication.getName())) {
+
+            throw new AccessDeniedException(
+                    "Authentication is required");
+        }
+
+        User user = userRepository
+                .findByEmailIgnoreCase(authentication.getName())
+                .orElseThrow(() ->
+                        new AccessDeniedException(
+                                "Authenticated user was not found"));
+
+        if (!Boolean.TRUE.equals(user.getActiveStatus())) {
+            throw new AccessDeniedException(
+                    "This user account is inactive");
+        }
+
+        return user;
+    }
+
+    private void authorizeForActionItem(
+            User user,
+            ActionItem actionItem) {
+
+        String role = normalizedRole(user);
+
+        if ("MANAGER".equals(role)) {
+            return;
+        }
+
+        if ("TEAM_MEMBER".equals(role)) {
+            User assignee = actionItem.getAssignee();
+
+            if (assignee != null
+                    && assignee.getUserId() != null
+                    && assignee.getUserId().equals(user.getUserId())) {
+                return;
+            }
+
+            throw new AccessDeniedException(
+                    "Team Members can access only action items assigned to them");
+        }
+
+        throw new AccessDeniedException(
+                "You do not have permission to access this action item");
+    }
+
+    private String normalizedRole(User user) {
+        return user.getRole() == null
+                ? ""
+                : user.getRole().trim().toUpperCase(Locale.ROOT);
     }
 }

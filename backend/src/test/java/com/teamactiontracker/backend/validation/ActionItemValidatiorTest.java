@@ -111,4 +111,30 @@ class ActionItemValidatorTest {
 
         assertDoesNotThrow(() -> validator.validate(request));
     }
+
+    @Test
+    void shouldRejectPastDueDate() {
+        request.setDueDate(LocalDate.now().minusDays(1));
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> validator.validate(request)
+        );
+
+        assertEquals("Due date cannot be in the past", exception.getMessage());
+    }
+
+    @Test
+    void shouldAcceptDueDateToday() {
+        request.setDueDate(LocalDate.now());
+
+        assertDoesNotThrow(() -> validator.validate(request));
+    }
+
+    @Test
+    void shouldAcceptFutureDueDate() {
+        request.setDueDate(LocalDate.now().plusDays(1));
+
+        assertDoesNotThrow(() -> validator.validate(request));
+    }
 }
