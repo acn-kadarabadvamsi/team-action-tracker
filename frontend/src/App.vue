@@ -1,6 +1,45 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 
+
+// Form defaults and UI state used by the template and action handlers.
+function createEmptyUser() {
+  return {
+    name: '',
+    email: '',
+    password: '',
+    role: 'TEAM_MEMBER'
+  }
+}
+
+function createEmptyAction() {
+  return {
+    title: '',
+    description: '',
+    assigneeId: '',
+    priority: 'MEDIUM',
+    dueDate: ''
+  }
+}
+
+const newAction = ref(createEmptyAction())
+const updatingActionId = ref(null)
+const statusUpdateError = ref('')
+const statusUpdateSuccess = ref('')
+
+const selectedHistoryAction = ref(null)
+const actionHistory = ref([])
+const historyError = ref('')
+const historyLoading = ref(false)
+
+const selectedCommentAction = ref(null)
+const actionComments = ref([])
+const newCommentText = ref('')
+const commentsError = ref('')
+const commentsSuccess = ref('')
+const commentsLoading = ref(false)
+const commentsSaving = ref(false)
+
 const API_BASE = 'http://localhost:8080/api'
 const API_URL = `${API_BASE}/action-items`
 
@@ -35,47 +74,13 @@ const newUser = ref(createEmptyUser())
 const search = ref('')
 const statusFilter = ref('ALL')
 const priorityFilter = ref('ALL')
-
-// Status update and action history
-const updatingActionId = ref(null)
-const statusUpdateError = ref('')
-const statusUpdateSuccess = ref('')
-
-const selectedHistoryAction = ref(null)
-const actionHistory = ref([])
-const historyLoading = ref(false)
-const historyError = ref('')
-
-// Action comments
-const selectedCommentAction = ref(null)
-const actionComments = ref([])
-const commentsLoading = ref(false)
-const commentsSaving = ref(false)
-const commentsError = ref('')
-const commentsSuccess = ref('')
-const newCommentText = ref('')
-
-const newAction = ref(createEmptyAction())
-
-function createEmptyAction() {
-  return {
-    title: '',
-    description: '',
-    assigneeId: 1,
-    priority: 'MEDIUM',
-    dueDate: '',
-    status: 'NOT_STARTED'
-  }
-}
-
-function createEmptyUser() {
-  return {
-    name: '',
-    email: '',
-    password: '',
-    role: 'TEAM_MEMBER'
-  }
-}
+const assigneeFilter = ref('ALL')
+const dateFrom = ref('')
+const dateTo = ref('')
+const sortBy = ref('dueDate')
+const sortDirection = ref('asc')
+const currentPage = ref(1)
+const pageSize = ref(10)
 
 const total = computed(() => actions.value.length)
 
@@ -91,10 +96,33 @@ const pending = computed(() =>
   actions.value.filter(a => a.status === 'NOT_STARTED').length
 )
 
+function isOverdue(action) {
+  if (!action.dueDate || action.status === 'COMPLETED') {
+    return false
+  }
+
+  const now = new Date()
+  const today = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0')
+  ].join('-')
+
+  return action.dueDate < today
+}
+
+const overdue = computed(() =>
+  actions.value.filter(isOverdue).length
+)
+
+const blocked = computed(() =>
+  actions.value.filter(a => a.status === 'BLOCKED').length
+)
+
 const filteredActions = computed(() => {
   const query = search.value.trim().toLowerCase()
 
-  return actions.value.filter(action => {
+  const result = actions.value.filter(action => {
     const matchesSearch = !query || [
       action.title,
       action.description,
@@ -111,9 +139,99 @@ const filteredActions = computed(() => {
       priorityFilter.value === 'ALL' ||
       action.priority === priorityFilter.value
 
-    return matchesSearch && matchesStatus && matchesPriority
+    const matchesAssignee =
+      assigneeFilter.value === 'ALL' ||
+      String(action.assignee?.userId ?? '') === assigneeFilter.value
+
+    const matchesStartDate =
+      !dateFrom.value ||
+      Boolean(action.dueDate && action.dueDate >= dateFrom.value)
+
+    const matchesEndDate =
+      !dateTo.value ||
+      Boolean(action.dueDate && action.dueDate <= dateTo.value)
+
+    return matchesSearch &&
+      matchesStatus &&
+      matchesPriority &&
+      matchesAssignee &&
+      matchesStartDate &&
+      matchesEndDate
   })
+
+  const priorityRank = {
+    LOW: 1,
+    MEDIUM: 2,
+    HIGH: 3,
+    CRITICAL: 4
+  }
+
+  result.sort((a, b) => {
+    let comparison = 0
+
+    if (sortBy.value === 'title') {
+      comparison = String(a.title || '').localeCompare(
+        String(b.title || '')
+      )
+    } else if (sortBy.value === 'priority') {
+      comparison =
+        (priorityRank[a.priority] || 0) -
+        (priorityRank[b.priority] || 0)
+    } else {
+      comparison = String(a.dueDate || '9999-12-31').localeCompare(
+        String(b.dueDate || '9999-12-31')
+      )
+    }
+
+    return sortDirection.value === 'asc'
+      ? comparison
+      : -comparison
+  })
+
+  return result
 })
+
+const totalPages = computed(() =>
+  Math.max(1, Math.ceil(filteredActions.value.length / pageSize.value))
+)
+
+const paginatedActions = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+
+  return filteredActions.value.slice(
+    start,
+    start + pageSize.value
+  )
+})
+
+const firstVisibleItem = computed(() =>
+  filteredActions.value.length === 0
+    ? 0
+    : (currentPage.value - 1) * pageSize.value + 1
+)
+
+const lastVisibleItem = computed(() =>
+  Math.min(
+    currentPage.value * pageSize.value,
+    filteredActions.value.length
+  )
+)
+
+function resetPage() {
+  currentPage.value = 1
+}
+
+function changeSort(field) {
+  if (sortBy.value === field) {
+    sortDirection.value =
+      sortDirection.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortBy.value = field
+    sortDirection.value = 'asc'
+  }
+
+  resetPage()
+}
 
 async function getCsrfToken() {
   const response = await fetch(`${API_BASE}/auth/csrf`, {
@@ -843,26 +961,36 @@ onMounted(() => {
     </p>
 
     <section class="summary">
-      <article class="summary-card">
-        <p>Total actions</p>
-        <h2>{{ total }}</h2>
-      </article>
+  <article class="summary-card">
+    <p>Total actions</p>
+    <h2>{{ total }}</h2>
+  </article>
 
-      <article class="summary-card">
-        <p>Not started</p>
-        <h2>{{ pending }}</h2>
-      </article>
+  <article class="summary-card">
+    <p>Not started</p>
+    <h2>{{ pending }}</h2>
+  </article>
 
-      <article class="summary-card">
-        <p>In progress</p>
-        <h2>{{ inProgress }}</h2>
-      </article>
+  <article class="summary-card">
+    <p>In progress</p>
+    <h2>{{ inProgress }}</h2>
+  </article>
 
-      <article class="summary-card">
-        <p>Completed</p>
-        <h2>{{ completed }}</h2>
-      </article>
-    </section>
+  <article class="summary-card">
+    <p>Completed</p>
+    <h2>{{ completed }}</h2>
+  </article>
+
+  <article class="summary-card">
+    <p>Blocked</p>
+    <h2>{{ blocked }}</h2>
+  </article>
+
+  <article class="summary-card">
+    <p>Overdue</p>
+    <h2>{{ overdue }}</h2>
+  </article>
+</section>
 
     <section class="panel">
       <div class="panel-heading">
@@ -874,29 +1002,111 @@ onMounted(() => {
       </div>
 
       <div class="filters">
-        <input
-          v-model="search"
-          type="search"
-          placeholder="Search title, description, or assignee..."
-          aria-label="Search action items"
-        />
+  <input
+    v-model="search"
+    type="search"
+    placeholder="Search title, description, or assignee..."
+    aria-label="Search action items"
+    @input="resetPage"
+  />
 
-        <select v-model="statusFilter" aria-label="Filter by status">
-          <option value="ALL">All statuses</option>
-          <option value="NOT_STARTED">Not started</option>
-          <option value="IN_PROGRESS">In progress</option>
-          <option value="BLOCKED">Blocked</option>
-          <option value="COMPLETED">Completed</option>
-        </select>
+  <select
+    v-model="statusFilter"
+    aria-label="Filter by status"
+    @change="resetPage"
+  >
+    <option value="ALL">All statuses</option>
+    <option value="NOT_STARTED">Not started</option>
+    <option value="IN_PROGRESS">In progress</option>
+    <option value="BLOCKED">Blocked</option>
+    <option value="COMPLETED">Completed</option>
+  </select>
 
-        <select v-model="priorityFilter" aria-label="Filter by priority">
-          <option value="ALL">All priorities</option>
-          <option value="CRITICAL">Critical</option>
-          <option value="HIGH">High</option>
-          <option value="MEDIUM">Medium</option>
-          <option value="LOW">Low</option>
-        </select>
-      </div>
+  <select
+    v-model="priorityFilter"
+    aria-label="Filter by priority"
+    @change="resetPage"
+  >
+    <option value="ALL">All priorities</option>
+    <option value="CRITICAL">Critical</option>
+    <option value="HIGH">High</option>
+    <option value="MEDIUM">Medium</option>
+    <option value="LOW">Low</option>
+  </select>
+
+  <select
+    v-if="currentUser?.role === 'MANAGER'"
+    v-model="assigneeFilter"
+    aria-label="Filter by assignee"
+    @change="resetPage"
+  >
+    <option value="ALL">All assignees</option>
+    <option
+      v-for="user in users"
+      :key="user.userId"
+      :value="String(user.userId)"
+    >
+      {{ user.name }}
+    </option>
+  </select>
+
+  <label>
+    Due from
+    <input
+      v-model="dateFrom"
+      type="date"
+      aria-label="Due date from"
+      @change="resetPage"
+    />
+  </label>
+
+  <label>
+    Due to
+    <input
+      v-model="dateTo"
+      type="date"
+      aria-label="Due date to"
+      :min="dateFrom || undefined"
+      @change="resetPage"
+    />
+  </label>
+
+  <select
+    v-model="sortBy"
+    aria-label="Sort action items by"
+    @change="resetPage"
+  >
+    <option value="dueDate">Sort by due date</option>
+    <option value="title">Sort by title</option>
+    <option value="priority">Sort by priority</option>
+  </select>
+
+  <button
+    type="button"
+    class="refresh-btn"
+    @click="changeSort(sortBy)"
+  >
+    {{ sortDirection === 'asc' ? 'Ascending ↑' : 'Descending ↓' }}
+  </button>
+
+  <button
+    type="button"
+    class="refresh-btn"
+    @click="
+      search = '';
+      statusFilter = 'ALL';
+      priorityFilter = 'ALL';
+      assigneeFilter = 'ALL';
+      dateFrom = '';
+      dateTo = '';
+      sortBy = 'dueDate';
+      sortDirection = 'asc';
+      currentPage = 1
+    "
+  >
+    Clear filters
+  </button>
+</div>
 
       <p v-if="loading" class="message">Loading action items...</p>
 
@@ -910,7 +1120,6 @@ onMounted(() => {
       <p v-else-if="filteredActions.length === 0" class="message">
         No matching action items found.
       </p>
-
       <div v-else class="table-wrap">
         <table>
           <thead>
@@ -925,7 +1134,10 @@ onMounted(() => {
           </thead>
 
           <tbody>
-            <tr v-for="action in filteredActions" :key="action.actionItemId">
+            <tr
+              v-for="action in paginatedActions"
+              :key="action.actionItemId"
+            >
               <td class="task-cell">
                 <strong>{{ action.title }}</strong>
                 <small>{{ action.description || 'No description' }}</small>
@@ -952,6 +1164,7 @@ onMounted(() => {
               </td>
 
               <td>{{ action.dueDate || '—' }}</td>
+
               <td class="action-controls">
                 <select
                   :value="action.status"
@@ -990,6 +1203,46 @@ onMounted(() => {
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <div
+        v-if="!loading && !error && filteredActions.length > 0"
+        class="pagination"
+      >
+        <span>
+          Showing {{ firstVisibleItem }}–{{ lastVisibleItem }}
+          of {{ filteredActions.length }} items
+        </span>
+
+        <label>
+          Rows per page
+          <select v-model.number="pageSize" @change="currentPage = 1">
+            <option :value="5">5</option>
+            <option :value="10">10</option>
+            <option :value="20">20</option>
+            <option :value="50">50</option>
+          </select>
+        </label>
+
+        <button
+          type="button"
+          class="refresh-btn"
+          :disabled="currentPage <= 1"
+          @click="currentPage--"
+        >
+          Previous
+        </button>
+
+        <span>Page {{ currentPage }} of {{ totalPages }}</span>
+
+        <button
+          type="button"
+          class="refresh-btn"
+          :disabled="currentPage >= totalPages"
+          @click="currentPage++"
+        >
+          Next
+        </button>
       </div>
     </section>
 
