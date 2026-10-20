@@ -1,0 +1,35 @@
+﻿# Environment secrets
+.env
+.env.*
+!.env.example
+
+# Java / Maven
+**/target/
+*.class
+
+# Vue / Node
+**/node_modules/
+**/dist/
+
+# Local logs
+*.log
+backend/startup-error.txt
+
+# IDE files
+.vscode/
+.idea/
+*.iml
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local database backups - never commit
+/team_action_tracker_backup*.sql
+
+# Local database dumps and schema exports
+/database/schema-snapshot/
+
+# Local application diagnostics
+/backend/flyway-startup.log
+/backend/startup-error.txt

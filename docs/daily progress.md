@@ -28,3 +28,28 @@
 
 \- Configured Git repository and pushed project changes to GitHub.
 
+
+## October 20, 2026 — Backend Integration and Verification
+
+- Implemented session-based authentication and role-based authorization.
+- Added user management endpoints and request/response DTOs.
+- Implemented action-item response DTOs to avoid exposing internal JPA fields.
+- Implemented action comment retrieval and creation with access checks.
+- Verified status updates, completion-date behavior, and action history.
+- Added OpenAPI/Swagger endpoint documentation.
+- Added automated tests for comment validation, comment service behavior, and action-item validation.
+- Verified backend tests and build completed successfully.
+- Verified frontend production build completed successfully.
+- Confirmed the application uses the DB_PASSWORD environment variable for database credentials.
+
+### Remaining work
+
+- Complete dashboard metrics and verify all dashboard requirements.
+- Verify search, filtering, sorting, and pagination.
+- Verify editing and reassignment of action items.
+- Review database migration scripts and schema reproducibility.
+- Expand API integration and authorization test coverage.
+- Update API documentation and setup instructions.
+- Review and commit outstanding changes.
+- Document one proactive improvement with impact, dependencies, and risks.
+- Prepare the application demonstration and technical walkthrough.
