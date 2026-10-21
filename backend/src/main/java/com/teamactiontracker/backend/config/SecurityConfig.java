@@ -43,9 +43,10 @@ public class SecurityConfig {
 
                 // Public health check
                 .requestMatchers(
-                    "/actuator/health"
+                   HttpMethod.GET, "/api/health",
+                   "/actuator/health"
                 ).permitAll()
-
+                
                 // Swagger UI and OpenAPI documentation
                 .requestMatchers(
                     "/swagger-ui.html",
