@@ -33,3 +33,6 @@ Thumbs.db
 # Local application diagnostics
 /backend/flyway-startup.log
 /backend/startup-error.txt
+
+# Local database backups
+backups/
