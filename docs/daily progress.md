@@ -1,55 +1,72 @@
-\## Week 1 Progress
+# Team Action Tracker — Daily Progress Log
 
+## Week 1: Requirements Analysis, High-Level Design and Project Setup
 
+### Objective
+Analyze project requirements, define the application architecture, and establish the initial development environment.
 
-\- Completed requirements analysis and documented functional and non-functional requirements.
+### Work Completed
+- Created the Team Action Tracker project directory and initialized the Git repository.
+- Established the initial frontend and backend project structure.
+- Identified functional and non-functional requirements.
+- Defined user roles and the core action-item management workflow.
+- Prepared the high-level solution design covering the frontend, REST APIs, backend business logic, and database.
+- Identified the core database entities: users, action items, comments, and action history.
+- Prepared the initial database design, entity relationship diagram, architecture diagram, and user-flow diagram.
+- Documented the planned API endpoints and their expected behavior.
+- Prepared the development environment and initial project documentation.
 
-\- Completed high-level system design and architecture documentation.
+### Blockers
+- No major blockers encountered during the initial setup and design activities.
+- Database migration strategy and schema consistency require validation during implementation.
 
-\- Created architecture, ER, and user flow diagrams.
+### Next Steps
+- Implement and validate the database schema.
+- Configure and verify database connectivity.
+- Develop the required backend REST APIs.
+- Implement authentication, authorization, and business validation.
+- Begin API testing and database integration.
 
-\- Completed database design and API specification.
+---
 
-\- Created Spring Boot backend using Java 21 and Maven Wrapper.
+## Week 2: Database Implementation, API Development and Testing
 
-\- Configured MySQL database and verified backend database connectivity.
+### Objective
+Implement the core database and backend functionality, enforce business rules, and validate application behavior through testing.
 
-\- Implemented backend health endpoint: GET /api/health.
+### Work Completed
+- Implemented the database tables for users, action items, comments, and action history.
+- Defined primary keys, foreign keys, mandatory fields, and relevant indexes.
+- Prepared database migration scripts for schema management.
+- Developed and updated REST API functionality for authentication, user retrieval, action-item management, status updates, comments, and action history.
+- Reviewed role-based access control and request validation.
+- Worked on completion-date handling and status-history tracking.
+- Reviewed centralized exception handling, application logging, and transaction behavior.
+- Executed backend automated tests, with 39 tests passing and zero failures, errors, or skipped tests in the recorded run.
+- Verified that the frontend production build completed successfully.
+- Updated and organized project documentation, including the README, requirements, architecture, database design, and API specification.
 
-\- Created JPA entities and repositories for users, action items, comments, and history.
+### Blockers
+- Fresh-database migration execution requires verification.
+- Backup restoration and complete end-to-end acceptance testing require confirmation.
+- Any remaining authorization, validation, or documentation gaps must be recorded and addressed.
 
-\- Implemented initial Action Item REST API and validation.
+### Next Steps
+- Verify database migrations against a clean test database without affecting the existing development database.
+- Validate API functionality, authentication, authorization, and business rules.
+- Confirm that action-item changes, comments, and history are persisted correctly.
+- Execute integration and end-to-end tests.
+- Update documentation to reflect the verified implementation.
+- Document unresolved issues, corrective actions, and final test evidence.
 
-\- Implemented initial Action Comment service and REST API.
+---
 
-\- Created Vue.js frontend using Vite.
+## Overall Project Status
 
-\- Verified Vue frontend successfully runs on localhost:5173.
+The project has progressed through requirements analysis, high-level design, development setup, database implementation, backend API development, and initial testing.
 
-\- Configured Git repository and pushed project changes to GitHub.
+**Verified:** Backend automated test results and successful frontend production build from the recorded runs.
 
+**Pending verification:** Fresh-database migration execution, backup restoration, and complete end-to-end acceptance testing.
 
-## October 20, 2026 — Backend Integration and Verification
-
-- Implemented session-based authentication and role-based authorization.
-- Added user management endpoints and request/response DTOs.
-- Implemented action-item response DTOs to avoid exposing internal JPA fields.
-- Implemented action comment retrieval and creation with access checks.
-- Verified status updates, completion-date behavior, and action history.
-- Added OpenAPI/Swagger endpoint documentation.
-- Added automated tests for comment validation, comment service behavior, and action-item validation.
-- Verified backend tests and build completed successfully.
-- Verified frontend production build completed successfully.
-- Confirmed the application uses the DB_PASSWORD environment variable for database credentials.
-
-### Remaining work
-
-- Complete dashboard metrics and verify all dashboard requirements.
-- Verify search, filtering, sorting, and pagination.
-- Verify editing and reassignment of action items.
-- Review database migration scripts and schema reproducibility.
-- Expand API integration and authorization test coverage.
-- Update API documentation and setup instructions.
-- Review and commit outstanding changes.
-- Document one proactive improvement with impact, dependencies, and risks.
-- Prepare the application demonstration and technical walkthrough.
+The project should be marked fully complete after the pending verification activities are executed and their results are documented.

@@ -36,3 +36,17 @@ Thumbs.db
 
 # Local database backups
 backups/
+
+# Frontend dependencies and generated output
+frontend/node_modules/
+frontend/dist/
+
+# Playwright output
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
+
+# Local environment files
+.env
+.env.*
+!.env.example

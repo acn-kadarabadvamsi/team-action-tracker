@@ -1,7 +1,14 @@
+﻿import { defineConfig } from 'vitest/config'
 import vue from '@vitejs/plugin-vue'
-import { defineConfig } from 'vite'
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [vue()],
+  test: {
+    environment: 'jsdom',
+    include: ['src/**/*.test.js'],
+    pool: 'threads',
+    maxWorkers: 1,
+    fileParallelism: false,
+    testTimeout: 15000,
+  },
 })

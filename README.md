@@ -1,146 +1,152 @@
-**Team Action Tracker**
+﻿# Team Action Tracker
 
+A full-stack application for managing team action items, assigning responsibilities, tracking priorities and statuses, and maintaining comments and activity history.
 
+## Technology Stack
 
-**Project Overview**
+- **Backend:** Java 21, Spring Boot, Maven, Spring Data JPA, Spring Security
+- **Frontend:** Vue 3, JavaScript, Vite
+- **Database:** MySQL 8
+- **Migrations:** Flyway
+- **Testing:** JUnit, Vitest, Vue Test Utils, Playwright
+- **Version control:** Git and GitHub
 
+## Project Structure
 
-
-Team Action Tracker is a full-stack application designed to manage team action items, assign responsibilities, track priorities and statuses, and maintain comments and activity history.
-
-
-
-**Technology Stack**
-
-* Backend: Java 21, Spring Boot, Maven, Spring Data JPA
-* Frontend: Vue.js, Vite, JavaScript
-* Database: MySQL 8
-* Version Control: Git and GitHub
-
-
-
-**Project Structure**
-
-
-
+```text
 Team Action Tracker/
-
-├── backend/                 # Spring Boot backend
-
-├── frontend/                # Vue.js frontend
-
-├── docs/
-
-│   ├── requirements.md
-
-│   ├── high level design.md
-
-│   ├── database design.md
-
-│   ├── api specification.md
-
-│   └── daily progress.md
-
+├── backend/                 # Spring Boot REST API
+├── frontend/                # Vue/Vite application
+│   ├── e2e/                 # Playwright tests
+│   └── src/                 # Vue source and unit tests
+├── database/migrations/     # Database migration notes
+├── docs/                    # Requirements, design, API and progress
 └── README.md
+```
 
+## Prerequisites
 
+- Java 21
+- MySQL 8
+- Node.js and npm
+- Git
 
-**Prerequisites**
+## Database Setup
 
-* Java 21
-* MySQL 8
-* Node.js and npm
-* Git
+1. Start MySQL.
+2. Create the database if it does not already exist:
 
+   ```sql
+   CREATE DATABASE team_action_tracker;
+   ```
 
+3. Set the `DB_PASSWORD` environment variable to your local MySQL password.
+4. Check `backend/src/main/resources/application.properties` for the JDBC URL and username.
+5. Flyway migrations are located in `backend/src/main/resources/db/migration/`.
 
-**Database Setup**
+Do not drop or recreate a database containing data you need to preserve.
 
-* Start the MySQL service.
-* Create the database:
-
-
-
-CREATE DATABASE team\_action\_tracker;
-
-
-
-Configure the database password using the DB\_PASSWORD environment variable. The backend reads its database connection settings from backend/src/main/resources/application.properties.
-
-
-
-**Run the Backend**
-
-
+## Run the Backend
 
 Open PowerShell:
 
+```powershell
+cd "C:\Team Action Tracker\backend"
+$env:JAVA_HOME="C:\Program Files\Microsoft\jdk-21.0.10.7-hotspot"
+$env:Path="$env:JAVA_HOME\bin;$env:Path"
+$env:DB_PASSWORD="YOUR_MYSQL_PASSWORD"
+.\mvnw.cmd spring-boot:run
+```
 
+Adjust `JAVA_HOME` if Java is installed elsewhere. Replace `YOUR_MYSQL_PASSWORD` with your actual local password. Never commit real credentials.
 
-cd "C:\\Team Action Tracker\\backend"
+The backend normally runs at `http://localhost:8080`.
 
-$env:JAVA\_HOME="C:\\Program Files\\Microsoft\\jdk-21.0.10.7-hotspot"
+## Run the Frontend
 
-$env:Path="$env:JAVA\_HOME\\bin;$env:Path"
+Open a separate PowerShell terminal:
 
-$env:DB\_PASSWORD="YOUR\_MYSQL\_PASSWORD"
-
-.\\mvnw.cmd spring-boot:run
-
-
-
-Replace YOUR\_MYSQL\_PASSWORD with your actual local MySQL password. Do not commit passwords to Git.
-
-
-
-Run the Frontend
-
-
-
-Open a separate terminal:
-
-
-
-cd "C:\\Team Action Tracker\\frontend"
-
+```powershell
+cd "C:\Team Action Tracker\frontend"
 npm install
-
 npm run dev
+```
 
+Open the local URL printed by Vite, normally `http://localhost:5173`.
 
+## Application Features
 
-Open the local URL printed by Vite, normally http://localhost:5173/.
+The current frontend implementation includes:
 
+- Session-based login and CSRF handling
+- Dashboard counts for action statuses and overdue items
+- Action-item search, filtering, sorting and pagination
+- Status updates
+- Action history viewing
+- Comments viewing and adding
+- Manager-only user and action-item creation
 
+Access depends on the authenticated user's role and backend authorization rules.
 
-**Current API Endpoints**
+## API Endpoints
 
+The API is served under `/api`. Authentication and authorization may be required.
 
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/api/health` | Backend health check |
+| GET | `/api/auth/csrf` | Obtain a CSRF token |
+| POST | `/api/auth/login` | Sign in |
+| GET | `/api/users` | Retrieve users |
+| POST | `/api/users` | Create a user (Manager) |
+| GET | `/api/action-items` | Retrieve action items |
+| GET | `/api/action-items/{id}` | Retrieve one action item |
+| POST | `/api/action-items` | Create an action item (Manager) |
+| PATCH | `/api/action-items/{id}/status` | Update status |
+| GET | `/api/action-items/{id}/history` | Retrieve action history |
+| GET | `/api/comments?actionItemId={id}` | Retrieve action comments |
+| POST | `/api/comments` | Add a comment |
 
-|Method|Endpoint|Purpose|
-|-|-|-|
-|GET|/api/health|Check backend health|
-|GET|/api/action-items|Retrieve action items|
-|GET|/api/action-items/{id}|Retrieve one action item|
-|POST|/api/action-items|Create an action item|
+Swagger UI, if enabled, is normally available at `http://localhost:8080/swagger-ui/index.html`.
 
+## Testing and Production Build
 
+Run these commands from the frontend directory.
 
+### Unit tests
 
+```powershell
+npm test
+```
 
+### End-to-end tests
 
+Install Chromium if needed:
 
-**Documentation**
+```powershell
+npx playwright install chromium
+```
 
-Project requirements, high-level design, database design, API specifications, diagrams, and daily progress are maintained in the docs/ directory.
+Run the E2E tests:
 
+```powershell
+npm run test:e2e
+```
 
+The current E2E tests check the login screen and invalid-login behavior. The invalid-login test requires the backend to be running.
 
-**Current Development Status**
+### Production build
 
-The initial project setup, database configuration, core action-item entities, initial APIs, and frontend scaffold have been developed. Further work is required to complete and verify frontend-backend integration and any additional functionality.
+```powershell
+npm run build
+```
 
+## Documentation
 
+Requirements, high-level design, database design, API specifications and progress notes are maintained in `docs/`.
 
-Refer to docs/daily progress.md for the recorded progress and pending tasks.
+## Security Notes
 
+- Keep passwords and other secrets out of source control.
+- Do not commit `node_modules`, generated build output or generated test reports.
+- Use test accounts and non-production data when validating workflows.
