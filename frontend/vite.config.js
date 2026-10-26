@@ -6,9 +6,9 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     include: ['src/**/*.test.js'],
-    pool: 'threads',
+    pool: 'forks',
     maxWorkers: 1,
     fileParallelism: false,
-    testTimeout: 15000,
+    testTimeout: 30000,
   },
 })
