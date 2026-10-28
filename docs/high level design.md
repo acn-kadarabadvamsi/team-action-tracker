@@ -53,17 +53,15 @@ The application layer is implemented using Java Spring Boot.
 
 The backend follows a layered structure:
 
-```text
+text
 Controller
     ↓
 Service
     ↓
 Repository
     ↓
-MySQL Database
-```
 
-**Responsibilities:**
+Responsibilities:
 
 - Expose REST endpoints.
 - Validate incoming requests.
