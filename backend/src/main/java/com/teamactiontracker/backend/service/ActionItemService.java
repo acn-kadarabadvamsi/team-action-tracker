@@ -122,6 +122,47 @@ public class ActionItemService {
     }
 
     @Transactional
+    public ActionItem updateActionItem(
+            Long actionItemId,
+            CreateActionItemRequest request) {
+
+        User currentUser = getCurrentUser();
+
+        if (!"MANAGER".equals(normalizedRole(currentUser))) {
+            throw new AccessDeniedException(
+                    "Only managers can edit action items");
+        }
+
+        validator.validate(request);
+
+        ActionItem item = actionItemRepository.findById(actionItemId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Action item not found: " + actionItemId));
+
+        User assignee = userRepository.findById(request.getAssigneeId())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Assignee not found: " + request.getAssigneeId()));
+
+        if (!Boolean.TRUE.equals(assignee.getActiveStatus())) {
+            throw new IllegalArgumentException("Assignee is inactive");
+        }
+
+        item.setTitle(request.getTitle().trim());
+        item.setDescription(request.getDescription());
+        item.setAssignee(assignee);
+        item.setPriority(request.getPriority());
+        item.setDueDate(request.getDueDate());
+
+        // Status changes must use updateStatus() to preserve action history.
+        if (request.getStatus() != null
+                && !request.getStatus().equals(item.getStatus())) {
+            throw new IllegalArgumentException(
+                    "Use the status update endpoint to change action status");
+        }
+
+        return actionItemRepository.save(item);
+    }
+    @Transactional
     public ActionItem updateStatus(
             Long actionItemId,
             UpdateActionItemStatusRequest request) {

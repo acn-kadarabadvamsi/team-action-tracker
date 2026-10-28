@@ -50,3 +50,10 @@ frontend/blob-report/
 .env
 .env.*
 !.env.example
+
+# Temporary source-code backups
+*.backup
+*.before-*
+*.encoding-backup
+*.pre-*
+*.working-build

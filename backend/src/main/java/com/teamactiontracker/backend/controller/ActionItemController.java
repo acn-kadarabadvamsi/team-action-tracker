@@ -96,6 +96,20 @@ public class ActionItemController {
         return ActionItemResponse.from(item);
     }
 
+    @PutMapping("/{id}")
+    @Operation(summary = "Edit an action item")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Action item updated"),
+        @ApiResponse(responseCode = "400", description = "Invalid action item data"),
+        @ApiResponse(responseCode = "403", description = "Insufficient permissions"),
+        @ApiResponse(responseCode = "404", description = "Action item not found")
+    })
+    public ActionItemResponse updateActionItem(
+            @PathVariable Long id,
+            @Valid @RequestBody CreateActionItemRequest request) {
+        ActionItem item = actionItemService.updateActionItem(id, request);
+        return ActionItemResponse.from(item);
+    }
     @PatchMapping("/{id}/status")
     @Operation(
         summary = "Update action item status",

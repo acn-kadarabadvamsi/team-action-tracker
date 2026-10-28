@@ -1,7 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 
-
 // Form defaults and UI state used by the template and action handlers.
 function createEmptyUser() {
   return {
@@ -63,6 +62,7 @@ const error = ref('')
 const formError = ref('')
 const formSuccess = ref('')
 const showCreateForm = ref(false)
+const editingActionId = ref(null)
 
 const showCreateUserForm = ref(false)
 const creatingUser = ref(false)
@@ -82,6 +82,18 @@ const sortDirection = ref('asc')
 const currentPage = ref(1)
 const pageSize = ref(10)
 
+const openActions = computed(() =>
+  actions.value.filter(a => a.status !== 'COMPLETED').length
+)
+
+const myActions = computed(() => {
+  const userId = Number(currentUser.value?.userId)
+  if (!Number.isFinite(userId)) return 0
+
+  return actions.value.filter(
+    a => Number(a.assignee?.userId) === userId
+  ).length
+})
 const total = computed(() => actions.value.length)
 
 const completed = computed(() =>
@@ -609,6 +621,7 @@ async function loadUsers() {
 async function createAction() {
   if (currentUser.value?.role !== 'MANAGER') return
 
+  editingActionId.value = null
   await loadUsers()
 
   formError.value = ''
@@ -618,9 +631,30 @@ async function createAction() {
   showCreateForm.value = true
 }
 
+async function openEditAction(action) {
+  if (currentUser.value?.role !== 'MANAGER') return
+
+  formError.value = ''
+  formSuccess.value = ''
+  userListError.value = ''
+  editingActionId.value = action.actionItemId
+
+  await loadUsers()
+
+  newAction.value = {
+    title: action.title || '',
+    description: action.description || '',
+    assigneeId: Number(action.assignee?.userId || ''),
+    priority: action.priority || 'MEDIUM',
+    dueDate: action.dueDate || ''
+  }
+
+  showCreateForm.value = true
+}
 function closeCreateForm() {
   if (saving.value) return
   showCreateForm.value = false
+  editingActionId.value = null
   formError.value = ''
 }
 
@@ -789,12 +823,19 @@ async function saveAction() {
       assigneeId: Number(newAction.value.assigneeId),
       createdBy: currentUser.value.userId,
       priority: newAction.value.priority,
-      status: 'NOT_STARTED',
+      status: editingActionId.value
+        ? actions.value.find(a => a.actionItemId === editingActionId.value)?.status || 'NOT_STARTED'
+        : 'NOT_STARTED',
       dueDate
     }
 
-    const response = await fetch(API_URL, {
-      method: 'POST',
+    const method = editingActionId.value ? 'PUT' : 'POST'
+    const endpoint = editingActionId.value
+      ? `${API_URL}/${editingActionId.value}`
+      : API_URL
+
+    const response = await fetch(endpoint, {
+      method,
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
@@ -818,7 +859,8 @@ async function saveAction() {
     }
 
     showCreateForm.value = false
-    formSuccess.value = 'Action item created successfully.'
+    formSuccess.value = editingActionId.value ? 'Action item updated successfully.' : 'Action item created successfully.'
+    editingActionId.value = null
     await loadActions()
   } catch (e) {
     formError.value =
@@ -892,7 +934,7 @@ onMounted(() => {
         <p class="subtitle">Track responsibilities. Keep work moving.</p>
         <p class="subtitle">
           Signed in as <strong>{{ currentUser?.name }}</strong>
-          · {{ currentUser?.role }}
+          | {{ currentUser?.role }}
         </p>
       </div>
 
@@ -903,7 +945,7 @@ onMounted(() => {
           @click="loadActions"
           :disabled="loading"
         >
-          <span class="refresh-icon" aria-hidden="true">↻</span>
+          <span class="refresh-icon" aria-hidden="true">R</span>
           <span>{{ loading ? 'Refreshing...' : 'Refresh' }}</span>
         </button>
 
@@ -931,14 +973,14 @@ onMounted(() => {
     <p v-if="formSuccess" class="success-banner" role="status">
       {{ formSuccess }}
       <button type="button" @click="formSuccess = ''" aria-label="Dismiss">
-        ✕
+        X
       </button>
     </p>
 
     <p v-if="userSuccess" class="success-banner" role="status">
       {{ userSuccess }}
       <button type="button" @click="userSuccess = ''" aria-label="Dismiss">
-        ✕
+        X
       </button>
     </p>
 
@@ -948,7 +990,7 @@ onMounted(() => {
         type="button"
         @click="statusUpdateSuccess = ''"
         aria-label="Dismiss"
-      >✕</button>
+      >X</button>
     </p>
 
     <p v-if="statusUpdateError" class="message error" role="alert">
@@ -957,7 +999,7 @@ onMounted(() => {
         type="button"
         @click="statusUpdateError = ''"
         aria-label="Dismiss"
-      >✕</button>
+      >X</button>
     </p>
 
     <section class="summary">
@@ -965,6 +1007,16 @@ onMounted(() => {
     <p>Total actions</p>
     <h2>{{ total }}</h2>
   </article>
+  <article class="summary-card">
+    <p>Open actions</p>
+    <h2>{{ openActions }}</h2>
+  </article>
+
+  <article class="summary-card">
+    <p>My actions</p>
+    <h2>{{ myActions }}</h2>
+  </article>
+
 
   <article class="summary-card">
     <p>Not started</p>
@@ -1086,7 +1138,7 @@ onMounted(() => {
     class="refresh-btn"
     @click="changeSort(sortBy)"
   >
-    {{ sortDirection === 'asc' ? 'Ascending ↑' : 'Descending ↓' }}
+    {{ sortDirection === 'asc' ? 'Ascending (A to Z)' : 'Descending (Z to A)' }}
   </button>
 
   <button
@@ -1150,7 +1202,7 @@ onMounted(() => {
                   class="priority"
                   :class="(action.priority || '').toLowerCase()"
                 >
-                  {{ action.priority || '—' }}
+                  {{ action.priority || "N/A" }}
                 </span>
               </td>
 
@@ -1163,7 +1215,7 @@ onMounted(() => {
                 </span>
               </td>
 
-              <td>{{ action.dueDate || '—' }}</td>
+              <td>{{ action.dueDate || 'Not set' }}</td>
 
               <td class="action-controls">
                 <select
@@ -1184,6 +1236,14 @@ onMounted(() => {
                   Saving...
                 </small>
 
+                <button
+                  v-if="currentUser?.role === 'MANAGER'"
+                  type="button"
+                  class="refresh-btn"
+                  @click="openEditAction(action)"
+                >
+                  Edit
+                </button>
                 <button
                   type="button"
                   class="refresh-btn"
@@ -1210,7 +1270,7 @@ onMounted(() => {
         class="pagination"
       >
         <span>
-          Showing {{ firstVisibleItem }}–{{ lastVisibleItem }}
+          Showing {{ firstVisibleItem }} - {{ lastVisibleItem }}
           of {{ filteredActions.length }} items
         </span>
 
@@ -1246,7 +1306,7 @@ onMounted(() => {
       </div>
     </section>
 
-    <footer>Team Action Tracker · Project dashboard</footer>
+    <footer>Team Action Tracker - Project dashboard</footer>
 
     <!-- ACTION HISTORY MODAL -->
     <div
@@ -1272,7 +1332,7 @@ onMounted(() => {
             type="button"
             @click="closeActionHistory"
             aria-label="Close history"
-          >✕</button>
+          >X</button>
         </div>
 
         <p v-if="historyLoading" class="message">
@@ -1304,12 +1364,12 @@ onMounted(() => {
                 <td>
                   {{ entry.updatedAt
                     ? new Date(entry.updatedAt).toLocaleString()
-                    : '—' }}
+                    : 'Not available' }}
                 </td>
                 <td>
                   {{ entry.previousStatus
                     ? formatStatus(entry.previousStatus)
-                    : '—' }}
+                    : 'Not available' }}
                 </td>
                 <td>{{ formatStatus(entry.newStatus) }}</td>
                 <td>
@@ -1317,7 +1377,7 @@ onMounted(() => {
                      entry.updatedBy?.email ||
                      'Unknown' }}
                 </td>
-                <td>{{ entry.comment || '—' }}</td>
+                <td>{{ entry.comment || 'No comment' }}</td>
               </tr>
             </tbody>
           </table>
@@ -1359,7 +1419,7 @@ onMounted(() => {
             type="button"
             @click="closeActionComments"
             aria-label="Close comments"
-          >✕</button>
+          >X</button>
         </div>
 
         <p v-if="commentsLoading" class="message">
@@ -1451,8 +1511,8 @@ onMounted(() => {
       >
         <div class="modal-heading">
           <div>
-            <p class="eyebrow">NEW TASK</p>
-            <h2 id="create-title">Create Action</h2>
+            <p class="eyebrow">{{ editingActionId ? 'EDIT TASK' : 'NEW TASK' }}</p>
+            <h2 id="create-title">{{ editingActionId ? 'Edit Action' : 'Create Action' }}</h2>
             <p class="subtitle">Fill in the details below.</p>
           </div>
 
@@ -1463,7 +1523,7 @@ onMounted(() => {
             :disabled="saving"
             aria-label="Close"
           >
-            ✕
+            X
           </button>
         </div>
 
@@ -1501,7 +1561,7 @@ onMounted(() => {
               :key="user.userId"
               :value="Number(user.userId)"
             >
-              {{ user.name }} — {{ user.role.replaceAll('_', ' ') }}
+              {{ user.name }} - {{ user.role.replaceAll('_', ' ') }}
             </option>
           </select>
 
@@ -1555,7 +1615,7 @@ onMounted(() => {
               type="submit"
               :disabled="saving"
             >
-              {{ saving ? 'Saving...' : 'Save Action' }}
+              {{ saving ? 'Saving...' : (editingActionId ? 'Update Action' : 'Save Action') }}
             </button>
           </div>
         </form>
@@ -1590,7 +1650,7 @@ onMounted(() => {
             :disabled="creatingUser"
             aria-label="Close"
           >
-            ✕
+            X
           </button>
         </div>
 
